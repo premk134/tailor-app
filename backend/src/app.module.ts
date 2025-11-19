@@ -10,6 +10,8 @@ import { OrdersModule } from './modules/orders/orders.module';
 import { PaymentsModule } from './modules/payments/payments.module';
 import { ChatModule } from './modules/chat/chat.module';
 import { AdminModule } from './modules/admin/admin.module';
+import { UploadsModule } from './modules/uploads/uploads.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
 
 @Module({
   imports: [
@@ -48,6 +50,8 @@ import { AdminModule } from './modules/admin/admin.module';
     PaymentsModule,
     ChatModule,
     AdminModule,
+    UploadsModule,
+    NotificationsModule,
   ],
 })
 export class AppModule {}

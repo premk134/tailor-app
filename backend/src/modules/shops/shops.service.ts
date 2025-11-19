@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Shop, ShopStatus } from '../../database/entities/shop.entity';
 import { CreateShopDto } from './dto/create-shop.dto';
+import { SearchShopsDto, SortBy } from './dto/search-shops.dto';
 
 @Injectable()
 export class ShopsService {
@@ -19,6 +20,117 @@ export class ShopsService {
     });
 
     return this.shopRepository.save(shop);
+  }
+
+  async search(searchDto: SearchShopsDto): Promise<{
+    shops: Shop[];
+    total: number;
+    page: number;
+    totalPages: number;
+  }> {
+    const {
+      query: searchQuery,
+      city,
+      state,
+      category,
+      minRating,
+      acceptingOrders,
+      fastDelivery,
+      latitude,
+      longitude,
+      maxDistance,
+      sortBy,
+      page = 1,
+      limit = 20,
+    } = searchDto;
+
+    const queryBuilder = this.shopRepository
+      .createQueryBuilder('shop')
+      .where('shop.status = :status', { status: ShopStatus.APPROVED });
+
+    // Full-text search
+    if (searchQuery) {
+      queryBuilder.andWhere(
+        '(LOWER(shop.name) LIKE LOWER(:query) OR LOWER(shop.description) LIKE LOWER(:query) OR LOWER(shop.address) LIKE LOWER(:query))',
+        { query: `%${searchQuery}%` },
+      );
+    }
+
+    // Location filters
+    if (city) {
+      queryBuilder.andWhere('LOWER(shop.city) = LOWER(:city)', { city });
+    }
+
+    if (state) {
+      queryBuilder.andWhere('LOWER(shop.state) = LOWER(:state)', { state });
+    }
+
+    // Category filter
+    if (category) {
+      queryBuilder.andWhere(':category = ANY(shop.categories)', { category });
+    }
+
+    // Rating filter
+    if (minRating !== undefined) {
+      queryBuilder.andWhere('shop.rating >= :minRating', { minRating });
+    }
+
+    // Accepting orders filter
+    if (acceptingOrders !== undefined) {
+      queryBuilder.andWhere('shop.acceptingOrders = :acceptingOrders', {
+        acceptingOrders,
+      });
+    }
+
+    // Fast delivery filter (shops with avg completion < 7 days)
+    if (fastDelivery) {
+      queryBuilder.andWhere('shop.avgCompletionDays <= 7');
+    }
+
+    // Distance-based search
+    if (latitude && longitude && maxDistance) {
+      // Calculate distance using Haversine formula
+      queryBuilder.andWhere(
+        `(6371 * acos(cos(radians(:lat)) * cos(radians(shop.latitude)) * cos(radians(shop.longitude) - radians(:lng)) + sin(radians(:lat)) * sin(radians(shop.latitude)))) <= :maxDistance`,
+        { lat: latitude, lng: longitude, maxDistance },
+      );
+    }
+
+    // Sorting
+    if (latitude && longitude && sortBy === SortBy.DISTANCE) {
+      queryBuilder.addSelect(
+        `(6371 * acos(cos(radians(${latitude})) * cos(radians(shop.latitude)) * cos(radians(shop.longitude) - radians(${longitude})) + sin(radians(${latitude})) * sin(radians(shop.latitude))))`,
+        'distance',
+      );
+      queryBuilder.orderBy('distance', 'ASC');
+    } else {
+      switch (sortBy) {
+        case SortBy.RATING:
+          queryBuilder.orderBy('shop.rating', 'DESC');
+          break;
+        case SortBy.NEWEST:
+          queryBuilder.orderBy('shop.createdAt', 'DESC');
+          break;
+        case SortBy.POPULAR:
+          queryBuilder.orderBy('shop.totalOrders', 'DESC');
+          break;
+        default:
+          queryBuilder.orderBy('shop.rating', 'DESC');
+      }
+    }
+
+    // Pagination
+    const skip = (page - 1) * limit;
+    queryBuilder.skip(skip).take(limit);
+
+    const [shops, total] = await queryBuilder.getManyAndCount();
+
+    return {
+      shops,
+      total,
+      page,
+      totalPages: Math.ceil(total / limit),
+    };
   }
 
   async findAll(filters?: { city?: string; category?: string; acceptingOrders?: boolean }) {

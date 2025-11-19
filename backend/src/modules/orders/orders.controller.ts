@@ -54,4 +54,30 @@ export class OrdersController {
   ) {
     return this.ordersService.addReview(id, user.id, body.rating, body.review);
   }
+
+  @Post(':id/cancel')
+  @ApiOperation({ summary: 'Cancel order (customer)' })
+  async cancelOrder(
+    @CurrentUser() user: any,
+    @Param('id') id: string,
+    @Body() body: { reason: string },
+  ) {
+    return this.ordersService.cancelOrder(id, user.id, body.reason, 'customer');
+  }
+
+  @Post(':id/reject')
+  @ApiOperation({ summary: 'Reject order (tailor)' })
+  async rejectOrder(
+    @CurrentUser() user: any,
+    @Param('id') id: string,
+    @Body() body: { reason: string },
+  ) {
+    return this.ordersService.rejectOrder(id, user.id, body.reason);
+  }
+
+  @Get(':id/cancellation-policy')
+  @ApiOperation({ summary: 'Get cancellation policy for order' })
+  async getCancellationPolicy(@Param('id') id: string) {
+    return this.ordersService.getCancellationPolicy(id);
+  }
 }
