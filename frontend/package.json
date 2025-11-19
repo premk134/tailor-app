@@ -20,7 +20,10 @@
     "@stripe/react-stripe-js": "^2.4.0",
     "@stripe/stripe-js": "^2.3.0",
     "react-hot-toast": "^2.4.1",
-    "clsx": "^2.1.0"
+    "clsx": "^2.1.0",
+    "@headlessui/react": "^1.7.17",
+    "date-fns": "^3.0.6",
+    "react-dropzone": "^14.2.3"
   },
   "devDependencies": {
     "@types/node": "^20.10.6",
